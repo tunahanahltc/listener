@@ -20,16 +20,20 @@ wss.on('connection', (ws, req) => {
         console.log(`Received: ${message}`);
 
         if (ws === listenerSocket) {
-            // Listener'dan gelen veriyi sadece istemcilere ilet
+            // Listener'dan gelen veriyi tüm istemcilere ilet
             clients.forEach(client => {
                 if (client.readyState === WebSocket.OPEN) {
+                    console.log(`Sending to client: ${message}`);
                     client.send(`Listener says: ${message}`);
                 }
             });
         } else {
-            // İstemciden gelen veriyi sadece listener'a ilet
+            // İstemciden gelen veriyi listener'a ilet
             if (listenerSocket && listenerSocket.readyState === WebSocket.OPEN) {
-                listenerSocket.send(`Client sent: ${message}`);
+                console.log(`Forwarding to listener: ${message}`);
+                listenerSocket.send(message);
+            } else {
+                console.log("No listener connected, message dropped.");
             }
         }
     });

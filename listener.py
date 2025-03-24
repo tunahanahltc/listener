@@ -1,15 +1,21 @@
 import asyncio
 import websockets
-
-import asyncio
-import websockets
 from fastapi import FastAPI, WebSocket
 import uvicorn
 
 WS_SERVER_URL = "wss://ws-cnlo.onrender.com/listener"  # Render'a deploy edince URL'yi güncelle
 
-app = FastAPI()
 websocket_connection = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global websocket_connection
+    asyncio.create_task(connect_to_ws_server())  # WebSocket bağlantısını başlat
+    yield
+    if websocket_connection:
+        await websocket_connection.close()
+
+app = FastAPI(lifespan=lifespan)
 
 async def connect_to_ws_server():
     global websocket_connection
@@ -21,7 +27,7 @@ async def connect_to_ws_server():
 
                 while True:
                     message = await websocket.recv()
-                    print(f"Received from WebSocket: {message}")
+                    print(f"✅ Listener received from WebSocket: {message}")
 
                     # Gelen mesajı işleyip yanıt döndür
                     response = f"Processed: {message}"
@@ -35,10 +41,6 @@ async def connect_to_ws_server():
             print(f"Error: {e}. Retrying in 5 seconds...")
             websocket_connection = None
             await asyncio.sleep(5)
-
-@app.on_event("startup")
-async def startup_event():
-    asyncio.create_task(connect_to_ws_server())  # WebSocket bağlantısını başlat
 
 @app.get("/")
 async def root():
@@ -54,12 +56,14 @@ async def websocket_endpoint(websocket: WebSocket):
             data = await websocket.receive_text()
             print(f"Received from client: {data}")
 
-            # WebSocket sunucusuna mesaj gönder
             if websocket_connection and websocket_connection.open:
+                print(f"Forwarding message to WebSocket server: {data}")
                 await websocket_connection.send(data)
                 response = await websocket_connection.recv()
+                print(f"Response from WebSocket server: {response}")
                 await websocket.send(response)
             else:
+                print("Error: WebSocket server not connected")
                 await websocket.send("Error: WebSocket server not connected")
 
         except Exception as e:
