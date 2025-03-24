@@ -1,31 +1,47 @@
-const WebSocket = require("ws");
-const axios = require("axios");
+const WebSocket = require('ws');
 
-const PORT = process.env.PORT || 10000;
-const FASTAPI_URL = "http://localhost:10001/process"; // FastAPI servisi için
+// WebSocket sunucusunu başlat
+const wss = new WebSocket.Server({ port: 8080 });
 
-const wss = new WebSocket.Server({ port: PORT });
+let listenerSocket = null;
+const clients = new Set();
 
-wss.on("connection", (ws) => {
-    console.log("Yeni istemci bağlandı");
+wss.on('connection', (ws, req) => {
+    const url = req.url;
+    
+    if (url.includes('/listener')) {
+        console.log('Listener connected');
+        listenerSocket = ws;
+    } else {
+        console.log('New client connected');
+        clients.add(ws);
+    }
 
-    ws.on("message", async (message) => {
-        console.log(`İstemciden gelen mesaj: ${message}`);
-
-        try {
-            // Veriyi FastAPI'ye gönder (işlenmesi için)
-            const response = await axios.post(FASTAPI_URL, { data: message });
-
-            // İşlenmiş veriyi istemciye geri gönder
-            ws.send(response.data.processed);
-        } catch (error) {
-            console.error("FastAPI servisine bağlanırken hata oluştu!", error.message);
+    ws.on('message', (message) => {
+        console.log(`Received: ${message}`);
+        
+        if (ws === listenerSocket) {
+            // Listener'dan gelen veriyi tüm istemcilere ilet
+            clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(message);
+                }
+            });
+        } else {
+            // İstemciden gelen veriyi listener'a ilet
+            if (listenerSocket && listenerSocket.readyState === WebSocket.OPEN) {
+                listenerSocket.send(message);
+            }
         }
     });
 
-    ws.on("close", () => {
-        console.log("İstemci bağlantıyı kapattı.");
+    ws.on('close', () => {
+        console.log('Client disconnected');
+        clients.delete(ws);
+        if (ws === listenerSocket) {
+            listenerSocket = null;
+        }
     });
 });
 
-console.log(`WebSocket sunucusu ${PORT} portunda çalışıyor...`);
+console.log('WebSocket server running on ws://localhost:8080');
