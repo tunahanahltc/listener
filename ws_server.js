@@ -1,6 +1,5 @@
 const WebSocket = require('ws');
 
-// WebSocket sunucusunu başlat
 const wss = new WebSocket.Server({ port: 8080 });
 
 let listenerSocket = null;
@@ -8,7 +7,7 @@ const clients = new Set();
 
 wss.on('connection', (ws, req) => {
     const url = req.url;
-    
+
     if (url.includes('/listener')) {
         console.log('Listener connected');
         listenerSocket = ws;
@@ -19,18 +18,18 @@ wss.on('connection', (ws, req) => {
 
     ws.on('message', (message) => {
         console.log(`Received: ${message}`);
-        
+
         if (ws === listenerSocket) {
-            // Listener'dan gelen veriyi tüm istemcilere ilet
+            // Listener'dan gelen veriyi sadece istemcilere ilet
             clients.forEach(client => {
                 if (client.readyState === WebSocket.OPEN) {
-                    client.send(message);
+                    client.send(`Listener says: ${message}`);
                 }
             });
         } else {
-            // İstemciden gelen veriyi listener'a ilet
+            // İstemciden gelen veriyi sadece listener'a ilet
             if (listenerSocket && listenerSocket.readyState === WebSocket.OPEN) {
-                listenerSocket.send(message);
+                listenerSocket.send(`Client sent: ${message}`);
             }
         }
     });
