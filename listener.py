@@ -1,7 +1,7 @@
 import asyncio
 import websockets
 
-WS_SERVER_URL = "wss://ws-cnlo.onrender.com"  # Render'a deploy edince URL'yi güncelle
+WS_SERVER_URL = "wss://ws-cnlo.onrender.com/listener"  # Render'a deploy edince URL'yi güncelle
 
 async def listen():
     async with websockets.connect(WS_SERVER_URL) as websocket:
